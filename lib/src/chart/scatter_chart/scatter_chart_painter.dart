@@ -102,8 +102,11 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         _spotsPaint,
       );
     }
-
+    print('original length: ${data.scatterSpots.length}');
     if (data.scatterLabelSettings.showLabel) {
+      final List<TextPainter> labelPainters = [];
+      Map<TextPainter, ScatterSpot> mapSpot = {};
+
       for (int i = 0; i < data.scatterSpots.length; i++) {
         final ScatterSpot scatterSpot = data.scatterSpots[i];
         final int spotIndex = i;
@@ -135,6 +138,25 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
 
         tp.layout(maxWidth: viewSize.width);
 
+        labelPainters.add(tp);
+
+        mapSpot[tp] = scatterSpot;
+      }
+
+      labelPainters
+          .sort((TextPainter a, TextPainter b) => (b.width - a.width).floor());
+
+      List<Rect> listOfRects = [];
+      Paint labelPointingPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..color = Colors.black
+        ..strokeWidth = 2;
+
+      print('new length: ${labelPainters.length}');
+      for (int i = 0; i < labelPainters.length; i++) {
+        TextPainter tp = labelPainters[i];
+        ScatterSpot scatterSpot = mapSpot[tp]!;
+
         final pixelX = getPixelX(scatterSpot.x, viewSize, holder);
         final pixelY = getPixelY(scatterSpot.y, viewSize, holder);
 
@@ -156,6 +178,39 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
               : tp.height / 2;
 
           newPixelY = pixelY - off;
+
+          print(
+              'Spot(${scatterSpot.x},${scatterSpot.y}): ${pixelY},${newPixelY} -- tp.width: ${tp.width}, tp.height: ${tp.height}');
+
+          Rect originalRect =
+              Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height);
+          if (!isTouching(originalRect, listOfRects)) {
+            // not touching with other rects, so good.
+          } else {
+            double testY = pixelY - scatterSpot.radius - tp.height;
+            bool searching = true;
+
+            while (searching && testY > 0) {
+              Rect testRect =
+                  Rect.fromLTWH(newPixelX, testY, tp.width, tp.height);
+              if (isTouching(testRect, listOfRects)) {
+                testY = testY - tp.height;
+              } else {
+                searching = false;
+                newPixelY = testY;
+              }
+            }
+
+            if (!searching) {
+              double intersectionCircleY = pixelY - scatterSpot.radius;
+              double intersectionLabelY = newPixelY + tp.height;
+              canvasWrapper.drawLine(
+                Offset(pixelX, intersectionLabelY),
+                Offset(pixelX, intersectionCircleY),
+                labelPointingPaint,
+              );
+            }
+          }
         } else {
           /// if either the height or the width of the spot is greater than the radius of the spot, then draw the label below the bubble,
           /// else draw the label inside the bubble.
@@ -164,7 +219,40 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
               ? scatterSpot.radius
               : -tp.height / 2;
           newPixelY = pixelY + off;
+
+          Rect originalRect =
+              Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height);
+          if (!isTouching(originalRect, listOfRects)) {
+            // not touching with other rects, so good.
+          } else {
+            double testY = pixelY + scatterSpot.radius;
+            bool searching = true;
+
+            while (searching && testY < viewSize.height) {
+              Rect testRect =
+                  Rect.fromLTWH(newPixelX, testY, tp.width, tp.height);
+              if (isTouching(testRect, listOfRects)) {
+                testY = testY + tp.height;
+              } else {
+                searching = false;
+                newPixelY = testY;
+              }
+            }
+
+            if (!searching) {
+              double intersectionCircleY = pixelY + scatterSpot.radius;
+              double intersectionLabelY = newPixelY;
+              canvasWrapper.drawLine(
+                Offset(pixelX, intersectionLabelY),
+                Offset(pixelX, intersectionCircleY),
+                labelPointingPaint,
+              );
+            }
+          }
         }
+
+        listOfRects
+            .add(Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height));
 
         canvasWrapper.drawText(
           tp,
@@ -176,6 +264,20 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
     if (data.clipData.any) {
       canvasWrapper.restore();
     }
+  }
+
+  bool isTouching(Rect toBePlotted, List<Rect> listOfRects) {
+    for (Rect rect in listOfRects) {
+      if (!(toBePlotted.bottom <= rect.top || toBePlotted.top >= rect.bottom)) {
+        // vertically the two rects are intersecting or inside one another.
+        // checking if horizontally they intersect.
+
+        if (!(toBePlotted.right < rect.left || toBePlotted.left > rect.right)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   @visibleForTesting
