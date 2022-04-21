@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:fl_chart/src/chart/base/axis_chart/axis_chart_painter.dart';
 import 'package:fl_chart/src/chart/base/base_chart/base_chart_painter.dart';
@@ -149,107 +151,211 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
       List<Rect> listOfRects = [];
       Paint labelPointingPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..color = Colors.black
-        ..strokeWidth = 2;
+        ..color = Colors.black45
+        ..strokeWidth = 1;
 
       print('new length: ${labelPainters.length}');
       for (int i = 0; i < labelPainters.length; i++) {
         TextPainter tp = labelPainters[i];
-        ScatterSpot scatterSpot = mapSpot[tp]!;
+        ScatterSpot currentSpot = mapSpot[tp]!;
 
-        final pixelX = getPixelX(scatterSpot.x, viewSize, holder);
-        final pixelY = getPixelY(scatterSpot.y, viewSize, holder);
-
-        double newPixelY;
+        final pixelX = getPixelX(currentSpot.x, viewSize, holder);
+        final pixelY = getPixelY(currentSpot.y, viewSize, holder);
+        final currentSpotOffset = Offset(pixelX, pixelY);
+        //double newPixelY;
 
         /// To ensure the label is centered horizontally with respect to the spot.
-        double newPixelX = pixelX - tp.width / 2;
+        //double newPixelX = pixelX - tp.width / 2;
 
-        double centerChartY = viewSize.height / 2;
+        // get list of 8 or less possible positions
+        List<Offset> possibleEightCandidates = [];
 
-        /// if the spot is in the lower half of the chart, then draw the label either in the center or above the spot,
-        /// if the spot is in upper half of the chart, then draw the label either in the center or below the spot.
-        if (pixelY > centerChartY) {
-          /// if either the height or the width of the spot is greater than the radius of the spot, then draw the label above the bubble,
-          /// else draw the label inside the bubble.
-          var off = (scatterSpot.radius * 1.5 < tp.height ||
-                  scatterSpot.radius * 1.5 < tp.width)
-              ? scatterSpot.radius + tp.height
-              : tp.height / 2;
+        double incrementalStep = 10;
 
-          newPixelY = pixelY - off;
+        for (int i = 0; i < 8; i++) {
+          double radianValue = ((pi / 180) * (45 * i));
+          bool foundCandidate = false;
+          bool isCrossingChartBoundary = false;
+          double currentIncrementalStep = incrementalStep;
+          Offset possibleOffset = currentSpotOffset;
 
-          print(
-              'Spot(${scatterSpot.x},${scatterSpot.y}): ${pixelY},${newPixelY} -- tp.width: ${tp.width}, tp.height: ${tp.height}');
+          while (!foundCandidate && !isCrossingChartBoundary) {
+            possibleOffset = currentSpotOffset +
+                Offset.fromDirection(radianValue, currentIncrementalStep);
 
-          Rect originalRect =
-              Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height);
-          if (!isTouching(originalRect, listOfRects)) {
-            // not touching with other rects, so good.
-          } else {
-            double testY = pixelY - scatterSpot.radius - tp.height;
-            bool searching = true;
-
-            while (searching && testY > 0) {
-              Rect testRect =
-                  Rect.fromLTWH(newPixelX, testY, tp.width, tp.height);
-              if (isTouching(testRect, listOfRects)) {
-                testY = testY - tp.height;
-              } else {
-                searching = false;
-                newPixelY = testY;
-              }
+            // if is crossing chart, then stop going in this direction
+            if (possibleOffset.dx < 0 ||
+                possibleOffset.dx > viewSize.width ||
+                possibleOffset.dy < 0 ||
+                possibleOffset.dy > viewSize.height) {
+              isCrossingChartBoundary = true;
+              break;
             }
 
-            if (!searching) {
-              double intersectionCircleY = pixelY - scatterSpot.radius;
-              double intersectionLabelY = newPixelY + tp.height;
-              canvasWrapper.drawLine(
-                Offset(pixelX, intersectionLabelY),
-                Offset(pixelX, intersectionCircleY),
-                labelPointingPaint,
-              );
-            }
-          }
-        } else {
-          /// if either the height or the width of the spot is greater than the radius of the spot, then draw the label below the bubble,
-          /// else draw the label inside the bubble.
-          var off = (scatterSpot.radius * 1.5 < tp.height ||
-                  scatterSpot.radius * 1.5 < tp.width)
-              ? scatterSpot.radius
-              : -tp.height / 2;
-          newPixelY = pixelY + off;
+            // check if it's breaking any constraint like, intersecting with other labels.
+            //
+            // subtracting to make sure (possibleX, possibleY) are in the center of the rect.
+            Rect possibleLabelRect = Rect.fromLTWH(
+                possibleOffset.dx - tp.width / 2,
+                possibleOffset.dy - tp.height / 2,
+                tp.width,
+                tp.height);
 
-          Rect originalRect =
-              Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height);
-          if (!isTouching(originalRect, listOfRects)) {
-            // not touching with other rects, so good.
-          } else {
-            double testY = pixelY + scatterSpot.radius;
-            bool searching = true;
+            if (isTouchingWithOtherRects(possibleLabelRect, listOfRects)) {
+              // if the label rect is touching other existing labels, then continue searching
+              // by moving further away from the original point in the same direction.
 
-            while (searching && testY < viewSize.height) {
-              Rect testRect =
-                  Rect.fromLTWH(newPixelX, testY, tp.width, tp.height);
-              if (isTouching(testRect, listOfRects)) {
-                testY = testY + tp.height;
-              } else {
-                searching = false;
-                newPixelY = testY;
-              }
-            }
-
-            if (!searching) {
-              double intersectionCircleY = pixelY + scatterSpot.radius;
-              double intersectionLabelY = newPixelY;
-              canvasWrapper.drawLine(
-                Offset(pixelX, intersectionLabelY),
-                Offset(pixelX, intersectionCircleY),
-                labelPointingPaint,
-              );
+              // increase the increment step
+              currentIncrementalStep += incrementalStep;
+            } else {
+              // if the label rect does not touch existing labels, then break the loop
+              // and add the offset to the possible list of 8 candidates.
+              foundCandidate = true;
+              possibleEightCandidates.add(possibleOffset);
             }
           }
         }
+
+        List<Offset> alreadyPlacedLabels = [];
+
+        double minScore = double.infinity;
+        Offset finalOffset = Offset(pixelX, pixelY);
+        double k1 = 2, k2 = 10, k3 = 1;
+        for (int i = 0; i < possibleEightCandidates.length; i++) {
+          Offset candidateOffset = possibleEightCandidates[i];
+
+          double distanceFromOtherLabels = 0;
+          double measureOfClosenessToSpotRelativeToWidth = 0;
+          double distanceFromOtherSpots = 0;
+
+          for (Offset labelOffset in alreadyPlacedLabels) {
+            distanceFromOtherLabels +=
+                k1 * ((candidateOffset - labelOffset).distance);
+          }
+
+          // varies between 0 and 1
+          double avgDistanceFromOtherLabelsRelativeToWidth =
+              distanceFromOtherLabels /
+                  (alreadyPlacedLabels.length * viewSize.width);
+
+          measureOfClosenessToSpotRelativeToWidth = k2 *
+              (((candidateOffset - currentSpotOffset).distance -
+                      currentSpot.radius) /
+                  viewSize.width);
+
+          for (ScatterSpot spot in mapSpot.values) {
+            if (spot != currentSpot) {
+              Offset spotOffset = Offset(getPixelX(spot.x, viewSize, holder),
+                  getPixelY(spot.y, viewSize, holder));
+
+              distanceFromOtherSpots +=
+                  k3 * ((candidateOffset - spotOffset).distance - spot.radius);
+            }
+          }
+
+          double avgDistanceFromOtherSpotsRelativeToWidth =
+              distanceFromOtherSpots / ((mapSpot.length - 1) * viewSize.width);
+
+          double score = -avgDistanceFromOtherLabelsRelativeToWidth +
+              measureOfClosenessToSpotRelativeToWidth -
+              avgDistanceFromOtherSpotsRelativeToWidth;
+
+          // find the position with the least score.
+          if (score < minScore) {
+            minScore = score;
+            finalOffset = candidateOffset;
+          }
+        }
+
+        alreadyPlacedLabels.add(finalOffset);
+
+        double newPixelX = finalOffset.dx - tp.width / 2;
+        double newPixelY = finalOffset.dy - tp.height / 2;
+
+        //double centerChartY = viewSize.height / 2;
+        // /// if the spot is in the lower half of the chart, then draw the label either in the center or above the spot,
+        // /// if the spot is in upper half of the chart, then draw the label either in the center or below the spot.
+        // if (pixelY > centerChartY) {
+        //   /// if either the height or the width of the spot is greater than the radius of the spot, then draw the label above the bubble,
+        //   /// else draw the label inside the bubble.
+        //   var off = (scatterSpot.radius * 1.5 < tp.height ||
+        //           scatterSpot.radius * 1.5 < tp.width)
+        //       ? scatterSpot.radius + tp.height
+        //       : tp.height / 2;
+        //
+        //   newPixelY = pixelY - off;
+        //
+        //   print(
+        //       'Spot(${scatterSpot.x},${scatterSpot.y}): ${pixelY},${newPixelY} -- tp.width: ${tp.width}, tp.height: ${tp.height}');
+        //
+        //   Rect originalRect =
+        //       Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height);
+        //   if (!isTouchingWithOtherRects(originalRect, listOfRects)) {
+        //     // not touching with other rects, so good.
+        //   } else {
+        //     double testY = pixelY - scatterSpot.radius - tp.height;
+        //     bool searching = true;
+        //
+        //     while (searching && testY > 0) {
+        //       Rect testRect =
+        //           Rect.fromLTWH(newPixelX, testY, tp.width, tp.height);
+        //       if (isTouchingWithOtherRects(testRect, listOfRects)) {
+        //         testY = testY - tp.height;
+        //       } else {
+        //         searching = false;
+        //         newPixelY = testY;
+        //       }
+        //     }
+        //
+        //     if (!searching) {
+        //       double intersectionCircleY = pixelY - scatterSpot.radius;
+        //       double intersectionLabelY = newPixelY + tp.height;
+        //       canvasWrapper.drawLine(
+        //         Offset(pixelX, intersectionLabelY),
+        //         Offset(pixelX, intersectionCircleY),
+        //         labelPointingPaint,
+        //       );
+        //     }
+        //   }
+        // } else {
+        //   /// if either the height or the width of the spot is greater than the radius of the spot, then draw the label below the bubble,
+        //   /// else draw the label inside the bubble.
+        //   var off = (scatterSpot.radius * 1.5 < tp.height ||
+        //           scatterSpot.radius * 1.5 < tp.width)
+        //       ? scatterSpot.radius
+        //       : -tp.height / 2;
+        //   newPixelY = pixelY + off;
+        //
+        //   Rect originalRect =
+        //       Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height);
+        //   if (!isTouchingWithOtherRects(originalRect, listOfRects)) {
+        //     // not touching with other rects, so good.
+        //   } else {
+        //     double testY = pixelY + scatterSpot.radius;
+        //     bool searching = true;
+        //
+        //     while (searching && testY < viewSize.height) {
+        //       Rect testRect =
+        //           Rect.fromLTWH(newPixelX, testY, tp.width, tp.height);
+        //       if (isTouchingWithOtherRects(testRect, listOfRects)) {
+        //         testY = testY + tp.height;
+        //       } else {
+        //         searching = false;
+        //         newPixelY = testY;
+        //       }
+        //     }
+        //
+        //     if (!searching) {
+        //       double intersectionCircleY = pixelY + scatterSpot.radius;
+        //       double intersectionLabelY = newPixelY;
+        //       canvasWrapper.drawLine(
+        //         Offset(pixelX, intersectionLabelY),
+        //         Offset(pixelX, intersectionCircleY),
+        //         labelPointingPaint,
+        //       );
+        //     }
+        //   }
+        // }
 
         listOfRects
             .add(Rect.fromLTWH(newPixelX, newPixelY, tp.width, tp.height));
@@ -266,7 +372,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
     }
   }
 
-  bool isTouching(Rect toBePlotted, List<Rect> listOfRects) {
+  bool isTouchingWithOtherRects(Rect toBePlotted, List<Rect> listOfRects) {
     for (Rect rect in listOfRects) {
       if (!(toBePlotted.bottom <= rect.top || toBePlotted.top >= rect.bottom)) {
         // vertically the two rects are intersecting or inside one another.
