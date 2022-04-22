@@ -167,8 +167,8 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         /// To ensure the label is centered horizontally with respect to the spot.
         //double newPixelX = pixelX - tp.width / 2;
 
-        // get list of 8 or less possible positions
-        List<Offset> possibleEightCandidates = [];
+        // get list of 9 or less possible positions
+        List<Offset> possibleNineCandidates = [currentSpotOffset];
 
         double incrementalStep = 10;
 
@@ -211,7 +211,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
               // if the label rect does not touch existing labels, then break the loop
               // and add the offset to the possible list of 8 candidates.
               foundCandidate = true;
-              possibleEightCandidates.add(possibleOffset);
+              possibleNineCandidates.add(possibleOffset);
             }
           }
         }
@@ -221,8 +221,8 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         double minScore = double.infinity;
         Offset finalOffset = Offset(pixelX, pixelY);
         double k1 = 2, k2 = 10, k3 = 1;
-        for (int i = 0; i < possibleEightCandidates.length; i++) {
-          Offset candidateOffset = possibleEightCandidates[i];
+        for (int i = 0; i < possibleNineCandidates.length; i++) {
+          Offset candidateOffset = possibleNineCandidates[i];
 
           double distanceFromOtherLabels = 0;
           double measureOfClosenessToSpotRelativeToWidth = 0;
