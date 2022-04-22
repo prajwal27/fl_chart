@@ -104,7 +104,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         _spotsPaint,
       );
     }
-    print('original length: ${data.scatterSpots.length}');
+    //print('original length: ${data.scatterSpots.length}');
     if (data.scatterLabelSettings.showLabel) {
       final List<TextPainter> labelPainters = [];
       Map<TextPainter, ScatterSpot> mapSpot = {};
@@ -154,7 +154,10 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         ..color = Colors.black45
         ..strokeWidth = 1;
 
-      print('new length: ${labelPainters.length}');
+      //print('new length: ${labelPainters.length}');
+
+      List<Offset> alreadyPlacedLabels = [];
+      String stock = "DISCA";
       for (int i = 0; i < labelPainters.length; i++) {
         TextPainter tp = labelPainters[i];
         ScatterSpot currentSpot = mapSpot[tp]!;
@@ -167,22 +170,34 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         /// To ensure the label is centered horizontally with respect to the spot.
         //double newPixelX = pixelX - tp.width / 2;
 
+        if (tp.text?.toPlainText() == stock) {
+          print('chart size: ${viewSize}');
+          print('Spot - ${tp.text?.toPlainText()}: ${currentSpot.toString()}');
+          print('${currentSpotOffset.toString()}');
+        }
+
         // get list of 9 or less possible positions
         List<Offset> possibleNineCandidates = [];
 
         // if the label can fit inside the spot, then consider the original position aas a candidate
-        if ((currentSpot.radius * 1.5 > tp.height &&
-            currentSpot.radius * 1.5 > tp.width)) {
+        if ((currentSpot.radius > tp.height * 2 &&
+            currentSpot.radius > tp.width * 2)) {
+          if (tp.text?.toPlainText() == stock) {
+            print('can fit ${tp.size}');
+          }
+
           possibleNineCandidates.add(currentSpotOffset);
         }
 
-        double incrementalStep = 10;
+        double incrementalStep = tp.size.longestSide;
 
         for (int i = 0; i < 8; i++) {
           double radianValue = ((pi / 180) * (45 * i));
           bool foundCandidate = false;
           bool isCrossingChartBoundary = false;
-          double currentIncrementalStep = incrementalStep;
+          double currentIncrementalStep = currentSpot.radius +
+              (cos(radianValue).abs() * tp.width / 2) +
+              (sin(radianValue).abs() * tp.height / 2);
           Offset possibleOffset = currentSpotOffset;
 
           while (!foundCandidate && !isCrossingChartBoundary) {
@@ -190,10 +205,10 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
                 Offset.fromDirection(radianValue, currentIncrementalStep);
 
             // if is crossing chart, then stop going in this direction
-            if (possibleOffset.dx < 0 ||
-                possibleOffset.dx > viewSize.width ||
-                possibleOffset.dy < 0 ||
-                possibleOffset.dy > viewSize.height) {
+            if (possibleOffset.dx - tp.width / 2 < 0 ||
+                possibleOffset.dx + tp.width / 2 > viewSize.width ||
+                possibleOffset.dy - tp.height / 2 < 0 ||
+                possibleOffset.dy + tp.height / 2 > viewSize.height) {
               isCrossingChartBoundary = true;
               break;
             }
@@ -218,11 +233,19 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
               // and add the offset to the possible list of 8 candidates.
               foundCandidate = true;
               possibleNineCandidates.add(possibleOffset);
+
+              if (tp.text?.toPlainText() == stock) {
+                print(
+                    'Found in ${45 * i} direction at (${possibleOffset.toString()})');
+                canvasWrapper.drawCircle(
+                  possibleOffset,
+                  3,
+                  _spotsPaint,
+                );
+              }
             }
           }
         }
-
-        List<Offset> alreadyPlacedLabels = [];
 
         double minScore = double.infinity;
         Offset finalOffset = Offset(pixelX, pixelY);
@@ -231,18 +254,22 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
           Offset candidateOffset = possibleNineCandidates[i];
 
           double distanceFromOtherLabels = 0;
+          double avgDistanceFromOtherLabelsRelativeToWidth = 0;
+
           double measureOfClosenessToSpotRelativeToWidth = 0;
           double distanceFromOtherSpots = 0;
 
-          for (Offset labelOffset in alreadyPlacedLabels) {
-            distanceFromOtherLabels +=
-                k1 * ((candidateOffset - labelOffset).distance);
-          }
+          if (alreadyPlacedLabels.length != 0) {
+            for (Offset labelOffset in alreadyPlacedLabels) {
+              distanceFromOtherLabels +=
+                  k1 * ((candidateOffset - labelOffset).distance);
+            }
 
-          // varies between 0 and 1
-          double avgDistanceFromOtherLabelsRelativeToWidth =
-              distanceFromOtherLabels /
-                  (alreadyPlacedLabels.length * viewSize.width);
+            // varies between 0 and 1
+            avgDistanceFromOtherLabelsRelativeToWidth =
+                distanceFromOtherLabels /
+                    (alreadyPlacedLabels.length * viewSize.width);
+          }
 
           measureOfClosenessToSpotRelativeToWidth = k2 *
               (((candidateOffset - currentSpotOffset).distance -
@@ -262,9 +289,14 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
           double avgDistanceFromOtherSpotsRelativeToWidth =
               distanceFromOtherSpots / ((mapSpot.length - 1) * viewSize.width);
 
-          double score = -avgDistanceFromOtherLabelsRelativeToWidth +
+          double score = -1 * avgDistanceFromOtherLabelsRelativeToWidth +
               measureOfClosenessToSpotRelativeToWidth -
               avgDistanceFromOtherSpotsRelativeToWidth;
+
+          if (tp.text?.toPlainText() == stock) {
+            print(
+                'Score for ${candidateOffset.toString()} : $score -- minScore:$minScore');
+          }
 
           // find the position with the least score.
           if (score < minScore) {
@@ -272,6 +304,10 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
             finalOffset = candidateOffset;
           }
         }
+        if (tp.text?.toPlainText() == stock) {
+          print('Final position: ${finalOffset.toString()}');
+        }
+        //print('spotPos: (${currentSpotOffset.dx},${currentSpotOffset.dy}) , labelPos - (${finalOffset.dx},${finalOffset.dy})');
 
         alreadyPlacedLabels.add(finalOffset);
 
