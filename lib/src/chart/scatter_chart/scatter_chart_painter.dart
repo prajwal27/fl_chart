@@ -168,7 +168,13 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         //double newPixelX = pixelX - tp.width / 2;
 
         // get list of 9 or less possible positions
-        List<Offset> possibleNineCandidates = [currentSpotOffset];
+        List<Offset> possibleNineCandidates = [];
+
+        // if the label can fit inside the spot, then consider the original position aas a candidate
+        if ((currentSpot.radius * 1.5 > tp.height &&
+            currentSpot.radius * 1.5 > tp.width)) {
+          possibleNineCandidates.add(currentSpotOffset);
+        }
 
         double incrementalStep = 10;
 
