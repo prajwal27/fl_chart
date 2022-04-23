@@ -234,15 +234,15 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
               foundCandidate = true;
               possibleNineCandidates.add(possibleOffset);
 
-              if (tp.text?.toPlainText() == stock) {
-                print(
-                    'Found in ${45 * i} direction at (${possibleOffset.toString()})');
-                canvasWrapper.drawCircle(
-                  possibleOffset,
-                  3,
-                  _spotsPaint,
-                );
-              }
+              // if (tp.text?.toPlainText() == stock) {
+              //   print(
+              //       'Found in ${45 * i} direction at (${possibleOffset.toString()})');
+              //   canvasWrapper.drawCircle(
+              //     possibleOffset,
+              //     3,
+              //     _spotsPaint,
+              //   );
+              // }
             }
           }
         }
@@ -259,7 +259,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
           double measureOfClosenessToSpotRelativeToWidth = 0;
           double distanceFromOtherSpots = 0;
 
-          if (alreadyPlacedLabels.length != 0) {
+          if (alreadyPlacedLabels.isNotEmpty) {
             for (Offset labelOffset in alreadyPlacedLabels) {
               distanceFromOtherLabels +=
                   k1 * ((candidateOffset - labelOffset).distance);
