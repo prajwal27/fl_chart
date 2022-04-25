@@ -157,7 +157,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
       //print('new length: ${labelPainters.length}');
 
       List<Offset> alreadyPlacedLabels = [];
-      String stock = "DISCA";
+      String stock = "LOL";
       for (int i = 0; i < labelPainters.length; i++) {
         TextPainter tp = labelPainters[i];
         ScatterSpot currentSpot = mapSpot[tp]!;
@@ -179,9 +179,9 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         // get list of 9 or less possible positions
         List<Offset> possibleNineCandidates = [];
 
-        // if the label can fit inside the spot, then consider the original position aas a candidate
-        if ((currentSpot.radius > tp.height * 2 &&
-            currentSpot.radius > tp.width * 2)) {
+        // if the label can fit inside the spot, then consider the original position as a candidate
+        if ((currentSpot.radius > tp.height * 0.6 &&
+            currentSpot.radius > tp.width * 0.6)) {
           if (tp.text?.toPlainText() == stock) {
             print('can fit ${tp.size}');
           }
@@ -204,17 +204,6 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
             possibleOffset = currentSpotOffset +
                 Offset.fromDirection(radianValue, currentIncrementalStep);
 
-            // if is crossing chart, then stop going in this direction
-            if (possibleOffset.dx - tp.width / 2 < 0 ||
-                possibleOffset.dx + tp.width / 2 > viewSize.width ||
-                possibleOffset.dy - tp.height / 2 < 0 ||
-                possibleOffset.dy + tp.height / 2 > viewSize.height) {
-              isCrossingChartBoundary = true;
-              break;
-            }
-
-            // check if it's breaking any constraint like, intersecting with other labels.
-            //
             // subtracting to make sure (possibleX, possibleY) are in the center of the rect.
             Rect possibleLabelRect = Rect.fromLTWH(
                 possibleOffset.dx - tp.width / 2,
@@ -222,6 +211,13 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
                 tp.width,
                 tp.height);
 
+            // if is crossing chart, then stop going in this direction
+            if (isCrossingBoundary(possibleLabelRect, viewSize)) {
+              isCrossingChartBoundary = true;
+              break;
+            }
+
+            // check if it's breaking any constraint like, intersecting with other labels.
             if (isTouchingWithOtherRects(possibleLabelRect, listOfRects)) {
               // if the label rect is touching other existing labels, then continue searching
               // by moving further away from the original point in the same direction.
@@ -234,27 +230,32 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
               foundCandidate = true;
               possibleNineCandidates.add(possibleOffset);
 
-              // if (tp.text?.toPlainText() == stock) {
-              //   print(
-              //       'Found in ${45 * i} direction at (${possibleOffset.toString()})');
-              //   canvasWrapper.drawCircle(
-              //     possibleOffset,
-              //     3,
-              //     _spotsPaint,
-              //   );
-              // }
+              if (tp.text?.toPlainText() == stock) {
+                Paint possiblePaint = Paint()
+                  ..style = PaintingStyle.fill
+                  ..color = Colors.black45
+                  ..strokeWidth = 1;
+
+                print(
+                    'Found in ${45 * i} direction at (${possibleOffset.toString()})');
+                canvasWrapper.drawCircle(
+                  possibleOffset,
+                  3,
+                  possiblePaint,
+                );
+              }
             }
           }
         }
 
         double minScore = double.infinity;
         Offset finalOffset = Offset(pixelX, pixelY);
-        double k1 = 2, k2 = 10, k3 = 1;
+        double k1 = 10, k2 = 100, k3 = 10;
         for (int i = 0; i < possibleNineCandidates.length; i++) {
           Offset candidateOffset = possibleNineCandidates[i];
 
           double distanceFromOtherLabels = 0;
-          double avgDistanceFromOtherLabelsRelativeToWidth = 0;
+//          double avgDistanceFromOtherLabelsRelativeToWidth = 0;
 
           double measureOfClosenessToSpotRelativeToWidth = 0;
           double distanceFromOtherSpots = 0;
@@ -262,19 +263,34 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
           if (alreadyPlacedLabels.isNotEmpty) {
             for (Offset labelOffset in alreadyPlacedLabels) {
               distanceFromOtherLabels +=
-                  k1 * ((candidateOffset - labelOffset).distance);
+                  k1 / ((candidateOffset - labelOffset).distance);
             }
 
-            // varies between 0 and 1
-            avgDistanceFromOtherLabelsRelativeToWidth =
-                distanceFromOtherLabels /
-                    (alreadyPlacedLabels.length * viewSize.width);
+            // // varies between 0 and 1
+            // avgDistanceFromOtherLabelsRelativeToWidth =
+            //     distanceFromOtherLabels /
+            //         (alreadyPlacedLabels.length);
           }
 
-          measureOfClosenessToSpotRelativeToWidth = k2 *
-              (((candidateOffset - currentSpotOffset).distance -
-                      currentSpot.radius) /
-                  viewSize.width);
+          measureOfClosenessToSpotRelativeToWidth =
+              k2 / ((candidateOffset - currentSpotOffset).distance);
+
+          // double avgDistanceFromOtherSpots;
+          // if(mapSpot.length >1) {
+          //   for (ScatterSpot spot in mapSpot.values) {
+          //     if (spot != currentSpot) {
+          //       Offset spotOffset = Offset(getPixelX(spot.x, viewSize, holder),
+          //           getPixelY(spot.y, viewSize, holder));
+          //
+          //       distanceFromOtherSpots += k3  / ((candidateOffset - spotOffset).distance);
+          //     }
+          //   }
+          //
+          //   avgDistanceFromOtherSpots =
+          //       distanceFromOtherSpots / ((mapSpot.length - 1) );
+          // } else {
+          //   avgDistanceFromOtherSpots = 0;
+          // }
 
           for (ScatterSpot spot in mapSpot.values) {
             if (spot != currentSpot) {
@@ -282,16 +298,13 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
                   getPixelY(spot.y, viewSize, holder));
 
               distanceFromOtherSpots +=
-                  k3 * ((candidateOffset - spotOffset).distance - spot.radius);
+                  k3 / ((candidateOffset - spotOffset).distance);
             }
           }
 
-          double avgDistanceFromOtherSpotsRelativeToWidth =
-              distanceFromOtherSpots / ((mapSpot.length - 1) * viewSize.width);
-
-          double score = -1 * avgDistanceFromOtherLabelsRelativeToWidth +
-              measureOfClosenessToSpotRelativeToWidth -
-              avgDistanceFromOtherSpotsRelativeToWidth;
+          double score = distanceFromOtherLabels -
+              measureOfClosenessToSpotRelativeToWidth +
+              distanceFromOtherSpots;
 
           if (tp.text?.toPlainText() == stock) {
             print(
@@ -412,6 +425,13 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
     if (data.clipData.any) {
       canvasWrapper.restore();
     }
+  }
+
+  bool isCrossingBoundary(Rect possibleLabelRect, Size boundary) {
+    return possibleLabelRect.left < 0 ||
+        possibleLabelRect.right / 2 > boundary.width ||
+        possibleLabelRect.top < 0 ||
+        possibleLabelRect.bottom > boundary.height;
   }
 
   bool isTouchingWithOtherRects(Rect toBePlotted, List<Rect> listOfRects) {
