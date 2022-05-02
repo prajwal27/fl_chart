@@ -105,7 +105,8 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
       );
     }
     //print('original length: ${data.scatterSpots.length}');
-    if (data.scatterLabelSettings.showLabel) {
+    if (data.scatterLabelSettings.showLabel &&
+        isTargetDataSameAsData(holder.data, holder.targetData)) {
       final List<TextPainter> labelPainters = [];
       Map<TextPainter, ScatterSpot> mapSpot = {};
 
@@ -438,6 +439,34 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
     if (data.clipData.any) {
       canvasWrapper.restore();
     }
+  }
+
+  bool isTargetDataSameAsData(
+      ScatterChartData data, ScatterChartData targetData) {
+    if (data.scatterSpots.length != targetData.scatterSpots.length) {
+      return false;
+    }
+    var sortedData = data.scatterSpots.toList();
+    var sortedTargetData = targetData.scatterSpots.toList();
+
+    sortedData.sort((a, b) {
+      return b.radius.abs().compareTo(a.radius.abs());
+    });
+    sortedTargetData.sort((a, b) {
+      return b.radius.abs().compareTo(a.radius.abs());
+    });
+
+    for (int i = 0; i < sortedData.length; i++) {
+      if (sortedData[i].radius != sortedTargetData[i].radius) {
+        return false;
+      }
+      if (sortedData[i].x != sortedTargetData[i].x ||
+          sortedData[i].y != sortedTargetData[i].y) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   bool isCrossingBoundary(Rect possibleLabelRect, Size boundary) {
