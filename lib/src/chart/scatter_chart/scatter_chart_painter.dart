@@ -134,7 +134,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
         final tp = TextPainter(
           text: span,
           textAlign: TextAlign.center,
-          textDirection: holder.data.scatterLabelSettings.textDirection,
+          textDirection: data.scatterLabelSettings.textDirection,
           textScaleFactor: holder.textScale,
         );
 
@@ -186,7 +186,20 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
             print('can fit ${tp.size}');
           }
 
-          possibleNineCandidates.add(currentSpotOffset);
+          Rect possibleLabelRect = Rect.fromLTWH(
+              currentSpotOffset.dx - tp.width / 2,
+              currentSpotOffset.dy - tp.height / 2,
+              tp.width,
+              tp.height);
+
+          if (!(isCrossingBoundary(possibleLabelRect, viewSize) ||
+              isTouchingWithOtherRects(possibleLabelRect, listOfRects))) {
+            possibleNineCandidates.add(currentSpotOffset);
+
+            if (tp.text?.toPlainText() == stock) {
+              print('can fit ${tp.size}');
+            }
+          }
         }
 
         double incrementalStep = tp.size.longestSide;
@@ -451,7 +464,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
   @visibleForTesting
   void drawTouchTooltips(BuildContext context, CanvasWrapper canvasWrapper,
       PaintHolder<ScatterChartData> holder) {
-    final targetData = holder.targetData;
+    final targetData = holder.data;
     for (var i = 0; i < targetData.scatterSpots.length; i++) {
       if (!targetData.showingTooltipIndicators.contains(i)) {
         continue;
