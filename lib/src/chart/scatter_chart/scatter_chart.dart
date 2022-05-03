@@ -8,6 +8,8 @@ class ScatterChart extends ImplicitlyAnimatedWidget {
   /// Determines how the [ScatterChart] should be look like.
   final ScatterChartData data;
 
+  final VoidCallback? onAnimationEnd;
+
   /// [data] determines how the [ScatterChart] should be look like,
   /// when you make any change in the [ScatterChartData], it updates
   /// new values with animation, and duration is [swapAnimationDuration].
@@ -18,10 +20,13 @@ class ScatterChart extends ImplicitlyAnimatedWidget {
     Key? key,
     Duration swapAnimationDuration = const Duration(milliseconds: 150),
     Curve swapAnimationCurve = Curves.linear,
+    this.onAnimationEnd,
   }) : super(
-            key: key,
-            duration: swapAnimationDuration,
-            curve: swapAnimationCurve);
+          key: key,
+          duration: swapAnimationDuration,
+          curve: swapAnimationCurve,
+          onEnd: onAnimationEnd,
+        );
 
   /// Creates a [_ScatterChartState]
   @override
