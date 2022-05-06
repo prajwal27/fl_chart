@@ -205,8 +205,6 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
 
         TextPainter tp = mapSpot[currentSpot]!;
 
-        print('stock: ${tp.text?.toPlainText()}');
-
         final pixelX = getPixelX(currentSpot.x, viewSize, holder);
         final pixelY = getPixelY(currentSpot.y, viewSize, holder);
 
@@ -762,7 +760,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
   @visibleForTesting
   void drawTouchTooltips(BuildContext context, CanvasWrapper canvasWrapper,
       PaintHolder<ScatterChartData> holder) {
-    final targetData = holder.data;
+    final targetData = holder.targetData;
     for (var i = 0; i < targetData.scatterSpots.length; i++) {
       if (!targetData.showingTooltipIndicators.contains(i)) {
         continue;
@@ -925,8 +923,13 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
   ) {
     final data = holder.data;
 
-    for (var i = 0; i < data.scatterSpots.length; i++) {
-      final spot = data.scatterSpots[i];
+    List<ScatterSpot> sortedList = data.scatterSpots.toList()
+      ..sort((ScatterSpot a, ScatterSpot b) => b.radius.compareTo(a.radius));
+
+    List<ScatterSpot> reverseSpotsList = sortedList.reversed.toList();
+
+    for (var i = 0; i < reverseSpotsList.length; i++) {
+      final spot = reverseSpotsList[i];
 
       final spotPixelX = getPixelX(spot.x, viewSize, holder);
       final spotPixelY = getPixelY(spot.y, viewSize, holder);
@@ -935,7 +938,15 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
           (localPosition - Offset(spotPixelX, spotPixelY)).distance;
 
       if (distance < spot.radius + data.scatterTouchData.touchSpotThreshold) {
-        return ScatterTouchedSpot(spot, i);
+        int originalIndex = -1;
+        for (int j = 0; j < data.scatterSpots.length; j++) {
+          ScatterSpot originalSpot = data.scatterSpots[j];
+          if (originalSpot == spot) {
+            originalIndex = j;
+            break;
+          }
+        }
+        return ScatterTouchedSpot(spot, originalIndex);
       }
     }
     return null;
