@@ -12,7 +12,7 @@ import 'scatter_chart_data.dart';
 /// Paints [ScatterChartData] in the canvas, it can be used in a [CustomPainter]
 class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
   /// [_spotsPaint] is responsible to draw scatter spots
-  late Paint _spotsPaint, _bgTouchTooltipPaint;
+  late Paint _spotsPaint, _bgTouchTooltipPaint, _borderTouchTooltipPaint;
 
   /// Paints [dataList] into canvas, it is the animating [ScatterChartData],
   /// [targetData] is the animation's target and remains the same
@@ -28,6 +28,11 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
     _bgTouchTooltipPaint = Paint()
       ..style = PaintingStyle.fill
       ..color = Colors.white;
+
+    _borderTouchTooltipPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = Colors.transparent
+      ..strokeWidth = 1.0;
   }
 
   String stock = "LOL";
@@ -897,6 +902,12 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
           textRotationOffset.dy +
           rectRotationOffset.dy,
     );
+
+    if (tooltipData.tooltipBorder != BorderSide.none) {
+      _borderTouchTooltipPaint.color = tooltipData.tooltipBorder.color;
+      _borderTouchTooltipPaint.strokeWidth = tooltipData.tooltipBorder.width;
+    }
+
     canvasWrapper.drawRotated(
       size: rect.size,
       rotationOffset: rectRotationOffset,
@@ -904,6 +915,7 @@ class ScatterChartPainter extends AxisChartPainter<ScatterChartData> {
       angle: rotateAngle,
       drawCallback: () {
         canvasWrapper.drawRRect(roundedRect, _bgTouchTooltipPaint);
+        canvasWrapper.drawRRect(roundedRect, _borderTouchTooltipPaint);
         canvasWrapper.drawText(drawingTextPainter, drawOffset);
       },
     );
