@@ -53,7 +53,7 @@ class PieChartData extends BaseChartData with EquatableMixin {
     double? startDegreeOffset,
     PieTouchData? pieTouchData,
     FlBorderData? borderData,
-  })  : sections = sections?.where((element) => element.value != 0).toList() ??
+  })  : sections = sections?.where((element) => element.value >= 0).toList() ??
             const [],
         centerSpaceRadius = centerSpaceRadius ?? double.infinity,
         centerSpaceColor = centerSpaceColor ?? Colors.transparent,
